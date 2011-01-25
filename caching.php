@@ -87,7 +87,7 @@ class Caching {
 				curl_setopt ($curl, CURLOPT_URL, $this->APIURL); 
 				curl_setopt ($curl, CURLOPT_CONNECTTIMEOUT, $timeout); 
 				// Getting binary data 
-				curl_setopt($ch, CURLOPT_HEADER, 0);
+				curl_setopt($curl, CURLOPT_HEADER, 0);
 				curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1); 
 				curl_setopt($curl, CURLOPT_BINARYTRANSFER, 1); 
 				//Get image via cURL
