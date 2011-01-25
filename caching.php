@@ -11,7 +11,7 @@ define('CACHEDIR', 'cache');
 class Caching {
 	
 	var $APIURL = "";
-	var $APIFunc = "";
+	//var $APIFunc = "";
 	var $returnType = "";
 	var $cacheTime = 0;
 	var $cacheFile = "";
@@ -23,7 +23,7 @@ class Caching {
 			return false;
 		} else {
 			//All required data is present
-			$this->APIFunc = $APIFunc;
+			//$this->APIFunc = $APIFunc;
 			$this->cacheTime = $cacheTime;
 			
 			//Remove any periods that precede the return type
@@ -56,6 +56,55 @@ class Caching {
 			//Create the URL
 			$URL = "//api.gosquared.com/" . $APIFunc . "." . $returnType . "?" . $strParameters;
 			$this->APIURL = $URL;
+			
+			//Check the cache is still valid
+			$valid = checkCacheValid();
+			if ($valid) {
+				//Cache is valid so return the data held in it
+				switch ($this->returnType) {
+					case 'png':
+					case 'jpg':
+						//Return the file path so that it can be used in an img tag
+						return $this->cacheFile;
+						break;
+					
+					case 'json':
+					case 'jsonp':
+					case 'xml':
+					case 'serialized':
+						//Return the cached data direct to the calling variable.
+						//The returned data must then be unserialized / dealt with.
+						$data = file_get_contents($this->cacheFile);
+						return $data;
+						break;
+				}
+			} else {
+				//Cache is not valid and so needs updating
+				$cacheUpdated = updateCache();
+				if ($cacheUpdated) {
+					//The cache is up to date and $cacheUpdated contains data to return
+					return $cacheUpdated;
+				} else {
+					//Cache was not updated, use the old cache data until new cache can be created.
+					switch ($this->returnType) {
+						case 'png':
+						case 'jpg':
+							//Return the file path so that it can be used in an img tag
+							return $this->cacheFile;
+							break;
+
+						case 'json':
+						case 'jsonp':
+						case 'xml':
+						case 'serialized':
+							//Return the cached data direct to the calling variable.
+							//The returned data must then be unserialized / dealt with.
+							$data = file_get_contents($this->cacheFile);
+							return $data;
+							break;
+					}
+				}
+			}
 		}
 	}
 	
@@ -92,35 +141,26 @@ class Caching {
 					//Save image to cache file
 					$cache = fopen($this->cacheFile, 'w');
 					fwrite($cache, $image);
+					fclose($cache);
+					return $image;
 				}
 				break;
 			
 			case 'json':
 			case 'jsonp':
-				
-				break;
-			
 			case 'xml':
-				
-				break;
-			
 			case 'serialized':
 				$data = file_get_contents($this->APIURL);
 				if ($data) {
 					$cache = fopen($this->cacheFile, 'w');
 					//Perhaps check if the first part is "Fatal Error"??
 					fwrite($cache, $data);
+					fclose($cache);
+					return $data;
 				}
 				break;
-			
-			default:
-				# code...
-				break;
 		}
-		if ($cache) {
-			//File open, close it!
-			fclose($cache);
-		}
+		return false;
 	}
 }
 
