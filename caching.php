@@ -50,79 +50,34 @@ class Caching {
 			$strParameters = preg_replace("/&$/", "", $strParameters);
 			
 			//Set the cache file
-			$cacheFile = CACHEDIR . $APIFunc . '.' . $returnType;
+			$cacheFile = CACHEDIR . '/' . $APIFunc . '.' . $returnType;
 			$this->cacheFile = $cacheFile;
 			
 			//Create the URL
-			$URL = "//api.gosquared.com/" . $APIFunc . "." . $returnType . "?" . $strParameters;
+			$URL = "http://api.gosquared.com/" . $APIFunc . "." . $returnType . "?" . $strParameters;
 			$this->APIURL = $URL;
-			
-			//Check the cache is still valid
-			$valid = checkCacheValid();
-			if ($valid) {
-				//Cache is valid so return the data held in it
-				switch ($this->returnType) {
-					case 'png':
-					case 'jpg':
-						//Return the file path so that it can be used in an img tag
-						return $this->cacheFile;
-						break;
-					
-					case 'json':
-					case 'jsonp':
-					case 'xml':
-					case 'serialized':
-						//Return the cached data direct to the calling variable.
-						//The returned data must then be unserialized / dealt with.
-						$data = file_get_contents($this->cacheFile);
-						return $data;
-						break;
-				}
-			} else {
-				//Cache is not valid and so needs updating
-				$cacheUpdated = updateCache();
-				if ($cacheUpdated) {
-					//The cache is up to date and $cacheUpdated contains data to return
-					return $cacheUpdated;
-				} else {
-					//Cache was not updated, use the old cache data until new cache can be created.
-					switch ($this->returnType) {
-						case 'png':
-						case 'jpg':
-							//Return the file path so that it can be used in an img tag
-							return $this->cacheFile;
-							break;
-
-						case 'json':
-						case 'jsonp':
-						case 'xml':
-						case 'serialized':
-							//Return the cached data direct to the calling variable.
-							//The returned data must then be unserialized / dealt with.
-							$data = file_get_contents($this->cacheFile);
-							return $data;
-							break;
-					}
-				}
-			}
 		}
 	}
 	
 	function checkCacheValid() {
 		//Get the times
-		$fileModTime = filemtime($this->cacheFile);
-		if ($fileModTime) {
-			$cacheRenewalTime = $fileModTime + $this->cacheTime;
-			if ((time() - $cacheRenewalTime) > 0) {
-				//cache is still valid
-				return true;
+		if (file_exists($this->cacheFile)) {
+			echo 'file exists';
+			$fileModTime = filemtime($this->cacheFile);
+			if ($fileModTime) {
+				echo $fileModTime;
+				$cacheRenewalTime = $fileModTime + $this->cacheTime;
+				if ((time() - $cacheRenewalTime) > 0) {
+					//cache is still valid
+					echo 'Cache Valid';
+					return true;
+				}
 			}
 		}
 		return false;
 	}
 	
 	function updateCache() {
-		$data = null;
 		switch ($this->returnType) {
 			case 'jpg':
 			case 'png':
@@ -132,6 +87,7 @@ class Caching {
 				curl_setopt ($curl, CURLOPT_URL, $this->APIURL); 
 				curl_setopt ($curl, CURLOPT_CONNECTTIMEOUT, $timeout); 
 				// Getting binary data 
+				curl_setopt($ch, CURLOPT_HEADER, 0);
 				curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1); 
 				curl_setopt($curl, CURLOPT_BINARYTRANSFER, 1); 
 				//Get image via cURL
@@ -142,7 +98,7 @@ class Caching {
 					$cache = fopen($this->cacheFile, 'w');
 					fwrite($cache, $image);
 					fclose($cache);
-					return $image;
+					return $this->cacheFile;
 				}
 				break;
 			
@@ -161,6 +117,57 @@ class Caching {
 				break;
 		}
 		return false;
+	}
+	
+	function getAPIResults() {
+		//Check the cache is still valid
+		$valid = $this->checkCacheValid();
+		if ($valid) {
+			//Cache is valid so return the data held in it
+			switch ($this->returnType) {
+				case 'png':
+				case 'jpg':
+					//Return the file path so that it can be used in an img tag
+					return $this->cacheFile;
+					break;
+				
+				case 'json':
+				case 'jsonp':
+				case 'xml':
+				case 'serialized':
+					//Return the cached data direct to the calling variable.
+					//The returned data must then be unserialized / dealt with.
+					$data = file_get_contents($this->cacheFile);
+					return $data;
+					break;
+			}
+		} else {
+			//Cache is not valid and so needs updating
+			$cacheUpdated = $this->updateCache();
+			if ($cacheUpdated) {
+				//The cache is up to date and $cacheUpdated contains data to return
+				return $cacheUpdated;
+			} else {
+				//Cache was not updated, use the old cache data until new cache can be created.
+				switch ($this->returnType) {
+					case 'png':
+					case 'jpg':
+						//Return the file path so that it can be used in an img tag
+						return $this->cacheFile;
+						break;
+
+					case 'json':
+					case 'jsonp':
+					case 'xml':
+					case 'serialized':
+						//Return the cached data direct to the calling variable.
+						//The returned data must then be unserialized / dealt with.
+						$data = file_get_contents($this->cacheFile);
+						return $data;
+						break;
+				}
+			}
+		}
 	}
 }
 

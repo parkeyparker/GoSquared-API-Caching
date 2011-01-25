@@ -1,15 +1,22 @@
 <?php
 
 require_once('caching.php');
-$APIFunc = 'pageviews';
+$APIFunc = 'trends_widget';
 $parameters = array(
 	'api_key' => 'VLS3XR4KNOEXL0J1',
-	'sid' => 'GSN-126445-R'
+	'sid' => 'GSN-126445-R',
+	'metric' => 'pageviews',
+	'period' => 'week'
 );
 $returnType = '.png';
-$cacheTime = 3600;
-$data = new Caching($APIFunc, $parameters, $returnType, $cacheTime);
-
-echo time();
-
+$cacheTime = 5 * 60; //5 minutes
+$cache = new Caching($APIFunc, $parameters, $returnType, $cacheTime);
+$data = $cache->getAPIResults();
 ?>
+<html>
+<head>
+	<title>API Caching Test Page</title>
+</head>
+<body>
+	<img src="<?php echo $data; ?>" alt="">
+</body>
