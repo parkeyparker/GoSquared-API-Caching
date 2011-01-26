@@ -11,19 +11,19 @@ define('CACHEDIR', 'cache');
 class Caching {
 	
 	var $APIURL = "";
-	//var $APIFunc = "";
+	var $APIFunc = "";
 	var $returnType = "";
 	var $cacheTime = 0;
 	var $cacheFile = "";
 	
-	function __construct($APIFunc, $parameters, $returnType, $cacheTime) {
-		if (strlen($APIFunc) < 1 or $cacheTime <= 0) {
+	function APICallInit($APIFunc, $parameters, $returnType, $cacheTime) {
+		if (strlen($APIFunc) < 1 or $cacheTime < 0) {
 			//Required data is missing!
 			echo "You have omitted some important data from the caching function, please rectify and try again";
 			return false;
 		} else {
 			//All required data is present
-			//$this->APIFunc = $APIFunc;
+			$this->APIFunc = $APIFunc;
 			$this->cacheTime = $cacheTime;
 			
 			//Remove any periods that precede the return type
@@ -50,12 +50,19 @@ class Caching {
 			$strParameters = preg_replace("/&$/", "", $strParameters);
 			
 			//Set the cache file
-			$cacheFile = CACHEDIR . '/' . $APIFunc . '.' . $returnType;
+			//Hash the parameters and append to the filename of the cache file.
+			$paramHash = substr(md5($strParameters), 0, 20);
+			echo $paramHash . ' ';
+			$cacheFile = CACHEDIR . '/' . $APIFunc . '-' . $paramHash . '.' . $returnType;
 			$this->cacheFile = $cacheFile;
 			
 			//Create the URL
-			$URL = "http://api.gosquared.com/" . $APIFunc . "." . $returnType . "?" . $strParameters;
+			$URL = "http";
+			$URL .= (isset($_SERVER['HTTPS']) ? "s" : "");
+			$URL .= "://api.gosquared.com/" . $APIFunc . "." . $returnType . "?" . $strParameters;
 			$this->APIURL = $URL;
+			
+			echo $URL;
 		}
 	}
 	
@@ -119,57 +126,48 @@ class Caching {
 		return false;
 	}
 	
-	function getAPIResults() {
-		//Check the cache is still valid
-		$valid = $this->checkCacheValid();
-		if ($valid) {
-			//Cache is valid so return the data held in it
-			switch ($this->returnType) {
-				case 'png':
-				case 'jpg':
-					//Return the file path so that it can be used in an img tag
-					return $this->cacheFile;
-					break;
-				
-				case 'json':
-				case 'jsonp':
-				case 'xml':
-				case 'serialized':
-					//Return the cached data direct to the calling variable.
-					//The returned data must then be unserialized / dealt with.
-					$data = file_get_contents($this->cacheFile);
-					return $data;
-					break;
-			}
-		} else {
-			//Cache is not valid and so needs updating
-			$cacheUpdated = $this->updateCache();
-			if ($cacheUpdated) {
-				//The cache is up to date and $cacheUpdated contains data to return
-				return $cacheUpdated;
-			} else {
-				//Cache was not updated, use the old cache data until new cache can be created.
-				switch ($this->returnType) {
-					case 'png':
-					case 'jpg':
-						//Return the file path so that it can be used in an img tag
-						return $this->cacheFile;
-						break;
-
-					case 'json':
-					case 'jsonp':
-					case 'xml':
-					case 'serialized':
-						//Return the cached data direct to the calling variable.
-						//The returned data must then be unserialized / dealt with.
-						$data = file_get_contents($this->cacheFile);
-						return $data;
-						break;
-				}
-			}
+	function getCachedData() {
+		switch ($this->returnType) {
+			case 'png':
+			case 'jpg':
+				//Return the file path so that it can be used in an img tag
+				return $this->cacheFile;
+				break;
+			
+			case 'json':
+			case 'jsonp':
+			case 'xml':
+			case 'serialized':
+				//Return the cached data direct to the calling variable.
+				//The returned data must then be unserialized / dealt with.
+				$data = file_get_contents($this->cacheFile);
+				return $data;
+				break;
 		}
 	}
+	
+	function getAPIResults() {
+		if ($this->APIFunc == 'livestats') {
+			return file_get_contents($this->APIURL);
+		} else {
+			//Check the cache is still valid
+			$valid = $this->checkCacheValid();
+			if ($valid) {
+				//Cache is valid so return the data held in it
+				return $this->getCachedData();
+			} else {
+				//Cache is not valid and so needs updating
+				$cacheUpdated = $this->updateCache();
+				if ($cacheUpdated) {
+					//The cache is up to date and $cacheUpdated contains data to return
+					return $cacheUpdated;
+				} else {
+					//Cache was not updated, use the old cache data until the cache can be updated.
+					return $this->getCachedData();
+				}
+			}
+		}	
+	}
 }
-
 
 ?>
